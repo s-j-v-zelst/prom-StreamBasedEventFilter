@@ -40,9 +40,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	@Override
 	protected void handleNextPacket(XSEvent event) {
 		final String caseId = event.get(storageParams.getCaseIdentifier()).toString();
-		//TODO: check if this works!
-		collector.deliver(event);
-		//		collector.handleNextPacket(event);
+		collector.triggerPacketHandle(event);
 		List<String> trace = translateToStringList(collector.getCases().get(caseId));
 		if (!alteredCases.contains(caseId))
 			trace.add(0, ARTIFICIAL_START_SYMBOL);

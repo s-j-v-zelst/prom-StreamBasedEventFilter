@@ -43,8 +43,7 @@ public class TrieBasedSpuriousEventFilterDepthBasedImpl extends AbstractXSHub<XS
 
 	@Override
 	protected void handleNextPacket(XSEvent event) {
-		//		eventCollector.handleNextPacket(event);
-		eventCollector.deliver(event);
+		eventCollector.triggerPacketHandle(event);
 		String caseId = event.get(storageParameters.getCaseIdentifier()).toString();
 		if (eventCollector.getSlidingWindow().size() >= storageParameters.getSlidingWindowSize()) {
 			if (!casesObservedDuringWarmup.contains(caseId)) {

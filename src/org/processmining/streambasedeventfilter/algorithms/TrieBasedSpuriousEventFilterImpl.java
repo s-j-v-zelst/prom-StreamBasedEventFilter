@@ -91,9 +91,7 @@ public class TrieBasedSpuriousEventFilterImpl extends AbstractXSHub<XSEvent, XSE
 
 	@Override
 	protected void handleNextPacket(XSEvent event) {
-		//		eventCollector.handleNextPacket(event);
-		//TODO test if this works:
-		eventCollector.deliver(event);
+		eventCollector.triggerPacketHandle(event);
 		if (eventCollector.getSlidingWindow().size() >= storageParameters.getSlidingWindowSize()) {
 			emissionDelay.add(event);
 			if (emissionDelay.size() > filterParameters.getEmissionDelay()) {
