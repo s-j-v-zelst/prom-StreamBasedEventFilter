@@ -15,6 +15,10 @@
     	<dependency org="prom" name="ProM-Plugins" rev="latest" changing="true" transitive="true" />
     	<!-- ProM packages. -->
     	<dependency org="prom" name="BasicUtils" rev="latest" changing="true" transitive="true" />
+    	<dependency org="prom" name="EventStream" rev="latest" changing="true" transitive="false" />
+    	<dependency org="prom" name="Log" rev="latest" changing="true" transitive="true" />
+    	<dependency org="prom" name="Stream" rev="latest" changing="true" transitive="false" />
+    	<dependency org="prom" name="StreamBasedEventLog" rev="latest" changing="true" transitive="false" />
     	<dependency org="prom" name="Widgets" rev="latest" changing="true" transitive="true" />
     	<!-- Third party libraries. These may span multiple lines. -->
     	<!-- Please uncomment the second line in the resolve target in your build.xml file
