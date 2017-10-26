@@ -24,6 +24,8 @@ import gnu.trove.map.hash.TObjectIntHashMap;
  * @param <E>
  * @param <P>
  */
+
+@Deprecated // not using this implementation at the moment, keeping the code for possible future experiments
 public class TrieBasedSpuriousEventFilterEventCollectorImpl<E extends EventPayload, P extends StreamBasedEventStorageParametersImpl>
 		extends TrieBasedEventCollectorImpl<E, P> {
 

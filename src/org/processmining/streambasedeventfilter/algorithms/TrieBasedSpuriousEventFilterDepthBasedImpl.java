@@ -22,7 +22,8 @@ import org.processmining.streambasedeventlog.parameters.StreamBasedEventStorageP
 import gnu.trove.map.TObjectDoubleMap;
 import gnu.trove.map.hash.TObjectDoubleHashMap;
 
-public class TrieBasedSpuriousEventFilterStatisticsImpl extends AbstractXSHub<XSEvent, XSEvent> implements XSEventHub {
+@Deprecated // not using this implementation at the moment, keeping the code for possible future experiments
+public class TrieBasedSpuriousEventFilterDepthBasedImpl extends AbstractXSHub<XSEvent, XSEvent> implements XSEventHub {
 
 	private final Collection<String> casesObservedDuringWarmup = new HashSet<>();
 	//	private final TObjectIntMap<String> noiseDetected = new TObjectIntHashMap<>();
@@ -31,7 +32,7 @@ public class TrieBasedSpuriousEventFilterStatisticsImpl extends AbstractXSHub<XS
 	private final StreamBasedEventStorageParametersImpl storageParameters;
 	private long tp, fp, tn, fn = 0;
 
-	public TrieBasedSpuriousEventFilterStatisticsImpl(final StreamBasedEventStorageParametersImpl storageParameters,
+	public TrieBasedSpuriousEventFilterDepthBasedImpl(final StreamBasedEventStorageParametersImpl storageParameters,
 			final TrieBasedSpurioiusEventFilterParametersImpl filterParameters) {
 		super("spurious event filter (statistics)", CommunicationType.SYNC);
 		eventCollector = new TrieBasedSpuriousEventFilterEventCollectorImpl<EventPayload, StreamBasedEventStorageParametersImpl>(

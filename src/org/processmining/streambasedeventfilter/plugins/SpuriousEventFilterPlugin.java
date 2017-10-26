@@ -19,9 +19,9 @@ import org.processmining.framework.plugin.annotations.Plugin;
 import org.processmining.framework.plugin.annotations.PluginVariant;
 import org.processmining.stream.connections.XSAuthorXSStreamConnectionImpl;
 import org.processmining.stream.core.enums.CommunicationType;
-import org.processmining.streambasedeventlog.algorithms.ConditionalProbabilitiesBasedXSEventFilterImpl;
+import org.processmining.streambasedeventfilter.algorithms.ConditionalProbabilitiesBasedXSEventFilterImpl;
+import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl;
 import org.processmining.streambasedeventlog.help.StreamBasedEventLogHelp;
-import org.processmining.streambasedeventlog.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl;
 import org.processmining.streambasedeventlog.parameters.StreamBasedEventLogParametersImpl;
 import org.processmining.streambasedeventlog.parameters.StreamBasedEventStorageParametersImpl;
 
@@ -54,6 +54,7 @@ public class SpuriousEventFilterPlugin {
 	@UITopiaVariant(affiliation = "Eindhoven University of Technology", author = "Sebastiaan J. van Zelst", email = "s.j.v.zelst@tue.nl")
 	@PluginVariant(variantLabel = "Spurious Event Filter, UI", requiredParameterLabels = { 0 })
 	public Object[] runUI(final UIPluginContext context, final XSEventStream stream) {
+		//TODO: make ProM-user dialog...
 		return run(context, stream, new StreamBasedEventStorageParametersImpl());
 	}
 
