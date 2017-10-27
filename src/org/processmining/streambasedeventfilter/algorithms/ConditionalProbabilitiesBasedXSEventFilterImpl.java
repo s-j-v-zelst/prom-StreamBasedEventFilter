@@ -35,6 +35,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		super("spurious_event_filter_conditional_probs", filterParameters);
 		collector = new NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl>(storageParams);
 		this.storageParams = storageParams;
+		//TEMPORARILY PUTTING A COMMENT HERE TO DO AN UPSTREAM GIT TEST.
 	}
 
 	@Override
