@@ -43,8 +43,8 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		collector.triggerPacketHandle(event);
 		List<String> trace = translateToStringList(collector.getCases().get(caseId));
 		if (!alteredCases.contains(caseId))
-			trace.add(0, ARTIFICIAL_START_SYMBOL);
-		updateConditionalProbabilityStructure(trace);
+		//	trace.add(0, ARTIFICIAL_START_SYMBOL);
+	updateConditionalProbabilityStructure(trace);
 		if (collector.getSlidingWindow().size() >= storageParams.getSlidingWindowSize()) {
 			boolean isNoise = classifyNewEventAsNoise(trace);
 			if (!isNoise) {
