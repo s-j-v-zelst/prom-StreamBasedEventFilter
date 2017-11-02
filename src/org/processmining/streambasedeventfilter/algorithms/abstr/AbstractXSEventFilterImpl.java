@@ -1,6 +1,8 @@
 package org.processmining.streambasedeventfilter.algorithms.abstr;
 
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -18,6 +20,12 @@ import org.processmining.streambasedeventfilter.parameters.XSEventFilterParamete
 public class AbstractXSEventFilterImpl<P extends XSEventFilterParametersImpl> extends AbstractXSHub<XSEvent, XSEvent>
 		implements XSEventHub {
 
+	private final Set<String> trainingCases = new HashSet<>();
+
+	public Set<String> getTrainingCases() {
+		return trainingCases;
+	}
+
 	public P getFilterParameters() {
 		return filterParameters;
 	}
@@ -28,8 +36,6 @@ public class AbstractXSEventFilterImpl<P extends XSEventFilterParametersImpl> ex
 	public AbstractXSEventFilterImpl(final String name, final P filterParameters) {
 		super(name, CommunicationType.SYNC);
 		this.filterParameters = filterParameters;
-		//TODO remove:
-		//		filterParameters.setMessageLevel(PluginParameters.DEBUG);
 	}
 
 	public XSEvent getCurrentResult() {
