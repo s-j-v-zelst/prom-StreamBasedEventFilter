@@ -12,9 +12,9 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.processmining.eventstream.core.interfaces.XSEvent;
 import org.processmining.framework.util.Pair;
 import org.processmining.streambasedeventfilter.algorithms.abstr.AbstractXSEventFilterImpl;
-import org.processmining.streambasedeventfilter.parameters.AdjustmentDistribution;
+import org.processmining.streambasedeventfilter.parameters.AdjustmentMethod;
 import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl;
-import org.processmining.streambasedeventfilter.parameters.FilterMethod;
+import org.processmining.streambasedeventfilter.parameters.FilteringMethod;
 import org.processmining.streambasedeventfilter.util.XSEventUtils;
 import org.processmining.streambasedeventlog.algorithms.NaiveEventCollectorImpl;
 import org.processmining.streambasedeventlog.parameters.StreamBasedEventLogParametersImpl;
@@ -48,7 +48,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	}
 
 	private boolean classifyNewEventAsNoise(final String caseId, final List<String> trace) {
-		FilterMethod filtermethod = getFilterParameters().getFiltermethod();
+		FilteringMethod filtermethod = getFilterParameters().getFiltermethod();
 		switch (filtermethod) {
 		case Any: 
 			return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
@@ -145,7 +145,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 						
 						return true;
 					}else  {
-						AdjustmentDistribution adjustmethod= getFilterParameters().getAdjustdistribute();
+						AdjustmentMethod adjustmethod= getFilterParameters().getAdjustmentmethod();
 						switch (adjustmethod) {
 						case None: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (Sum)){
 							return true;
@@ -153,7 +153,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 						case Max: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max)){
 							return true;
 							}else { return false;}
-						case MaxNZAbg: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max- NZAvg)){
+						case MaxNZAvg: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max- NZAvg)){
 							return true;
 							}else { return false;}				
 		
@@ -194,7 +194,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 					if (max == -1 || !distribution.containsKey(suffix)) {
 						return true;
 					} else {
-						AdjustmentDistribution adjustmethod= getFilterParameters().getAdjustdistribute();
+						AdjustmentMethod adjustmethod= getFilterParameters().getAdjustmentmethod();
 						switch (adjustmethod) {
 						case None: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (Sum)){
 							return true;
@@ -202,7 +202,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 						case Max: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max)){
 							return true;
 								}else { return false;}
-						case MaxNZAbg: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max- NZAvg)){
+						case MaxNZAvg: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max- NZAvg)){
 							return true;
 								}else { return false;}				
 							}//switch

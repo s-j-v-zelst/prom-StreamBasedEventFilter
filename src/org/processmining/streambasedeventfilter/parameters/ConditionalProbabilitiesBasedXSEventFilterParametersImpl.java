@@ -3,8 +3,8 @@ package org.processmining.streambasedeventfilter.parameters;
 public class ConditionalProbabilitiesBasedXSEventFilterParametersImpl extends XSEventFilterParametersImpl {
 
 	private int maxPatternLength = 3;
-	private FilterMethod filtermethod= FilterMethod.Forward;
-	private AdjustmentDistribution adjustdistribute = AdjustmentDistribution.MaxNZAbg;
+	private FilteringMethod filtermethod=FilteringMethod.Forward;
+	private AdjustmentMethod adjustmentmethod = AdjustmentMethod.MaxNZAvg;
 	private double cutoffThreshold = 0.01;
 
 	public int getMaxPatternLength() {
@@ -23,20 +23,20 @@ public class ConditionalProbabilitiesBasedXSEventFilterParametersImpl extends XS
 		this.cutoffThreshold = cutoffThreshold;
 	}
 
-	public FilterMethod getFiltermethod() {
+	public FilteringMethod getFiltermethod() {
 		return filtermethod;
 	}
 
-	public void setFiltermethod(FilterMethod filtermethod) {
+	public void setFiltermethod(FilteringMethod filtermethod) {
 		this.filtermethod = filtermethod;
 	}
 
-	public AdjustmentDistribution getAdjustdistribute() {
-		return adjustdistribute;
+	public AdjustmentMethod getAdjustmentmethod() {
+		return adjustmentmethod;
 	}
 
-	public void setAdjustdistribute(AdjustmentDistribution adjustdistribute) {
-		this.adjustdistribute = adjustdistribute;
+	public void setAdjustmentmethod(AdjustmentMethod adjustmentmethod) {
+		this.adjustmentmethod = adjustmentmethod;
 	}
 
 }
