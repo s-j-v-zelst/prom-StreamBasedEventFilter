@@ -11,10 +11,11 @@ import java.util.Map;
 import org.apache.commons.lang3.ArrayUtils;
 import org.processmining.eventstream.core.interfaces.XSEvent;
 import org.processmining.framework.util.Pair;
+import org.processmining.framework.util.collection.HashMultiSet;
 import org.processmining.streambasedeventfilter.algorithms.abstr.AbstractXSEventFilterImpl;
-import org.processmining.streambasedeventfilter.parameters.AdjustmentMethod;
 import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl;
-import org.processmining.streambasedeventfilter.parameters.FilteringMethod;
+import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl.AdjustmentMethod;
+import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl.FilteringMethod;
 import org.processmining.streambasedeventfilter.util.XSEventUtils;
 import org.processmining.streambasedeventlog.algorithms.NaiveEventCollectorImpl;
 import org.processmining.streambasedeventlog.parameters.StreamBasedEventLogParametersImpl;
@@ -34,40 +35,28 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	// registry that keeps track of indices in stored traces that relate to noise 
 	private final Map<String, int[]> noise = new HashMap<>();
 
-
-
-	@Deprecated // -> make publicly available via event collector...
-	private final StreamBasedEventLogParametersImpl storageParams;
-
 	public ConditionalProbabilitiesBasedXSEventFilterImpl(
 			ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParameters,
 			StreamBasedEventLogParametersImpl storageParams) {
 		super("spurious_event_filter_conditional_probs", filterParameters);
 		collector = new NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl>(storageParams);
-		this.storageParams = storageParams;
 	}
 
 	private boolean classifyNewEventAsNoise(final String caseId, final List<String> trace) {
 		FilteringMethod filtermethod = getFilterParameters().getFiltermethod();
 		switch (filtermethod) {
-		case Any: 
-			return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
-			
-		case BothDirections:
-			return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
-			
-		case Forward: 
-			return evaluateFollowsRelations(caseId, trace);
-			
-		case Backward:
-			return evaluatePrecedesRelation(caseId, trace);
-			
+			case ANY :
+				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
+			case BOTH_DIRECTIONS :
+				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
+			case FORWARD :
+				return evaluateFollowsRelations(caseId, trace);
+			case BACKWARD :
+				return evaluatePrecedesRelation(caseId, trace);
+			default :
+				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
+		}
 
-		default:
-			return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
-		} 
-		
-		
 	}
 
 	private List<String> constructNoiseAwarePrefix(final String caseId, final List<String> trace, final int length) {
@@ -83,12 +72,12 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			}
 			return prefix;
 		} else {
-			return trace.subList(trace.size() - length - 1, trace.size() - 1);
+			return new ArrayList<>(trace.subList(trace.size() - length - 1, trace.size() - 1));
 		}
 
 	}
 
-	private Pair<String, List<String>> constructNoiseAwareSuffixAndFollowingActivity(final String caseId,
+	private Pair<String, Collection<String>> constructNoiseAwareSuffixAndFollowingActivity(final String caseId,
 			final List<String> trace, final int length) {
 		if (noise.containsKey(caseId)) {
 			List<String> loopVar = new ArrayList<>(trace.subList(0, trace.size() - 1));
@@ -109,12 +98,12 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 					break;
 				}
 				int b = loopVar.size() - 1;
-				loopVar = loopVar.subList(0, b);
 				loopVar = new ArrayList<>(loopVar.subList(0, b));
 			}
-			return new Pair<>(act, suffix);
+			return new Pair<>(act, getAbstraction(suffix));
 		} else {
-			return new Pair<>(trace.get(trace.size() - length - 1), trace.subList(trace.size() - length, trace.size()));
+			return new Pair<>(trace.get(trace.size() - length - 1),
+					getAbstraction(new ArrayList<>(trace.subList(trace.size() - length, trace.size()))));
 		}
 
 	}
@@ -132,33 +121,45 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		final String newActivity = trace.get(trace.size() - 1);
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				List<String> prefix = constructNoiseAwarePrefix(caseId, trace, i);
+				Collection<String> prefix = getAbstraction(constructNoiseAwarePrefix(caseId, trace, i));
 				if (prefix.size() == i) {
 					TObjectIntMap<String> distribution = followsRelation.get(prefix);
 					int max = getMaximalFollowsValue(distribution);
 					int Sum = getSumFollowsValue(distribution);
-					int Count= getNZeroCountFollowsValue(distribution);
-					double NZAvg=0;
-					if (Count>0)
-						NZAvg= (Sum*1.0)/Count;
+					int Count = getNZeroCountFollowsValue(distribution);
+					double NZAvg = 0;
+					if (Count > 0)
+						NZAvg = (Sum * 1.0) / Count;
 					if (max == -1 || !distribution.containsKey(newActivity)) {
-						
+
 						return true;
-					}else  {
-						AdjustmentMethod adjustmethod= getFilterParameters().getAdjustmentmethod();
+					} else {
+						AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
 						switch (adjustmethod) {
-						case None: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (Sum)){
-							return true;
-							}else { return false;}
-						case Max: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max)){
-							return true;
-							}else { return false;}
-						case MaxNZAvg: if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max- NZAvg)){
-							return true;
-							}else { return false;}				
-		
+							case NONE :
+								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
+										* (Sum)) {
+									return true;
+								} else {
+									return false;
+								}
+							case MAX :
+								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
+										* (max)) {
+									return true;
+								} else {
+									return false;
+								}
+							case MAX_NZ_AVG :
+								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
+										* (max - NZAvg)) {
+									return true;
+								} else {
+									return false;
+								}
+
 						} // Switch
-						 
+
 					} // main computation
 				} else {
 					return false;
@@ -180,32 +181,43 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private boolean evaluatePrecedesRelation(final String caseId, final List<String> trace) {
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				Pair<String, List<String>> actSuffix = constructNoiseAwareSuffixAndFollowingActivity(caseId, trace, i);
+				Pair<String, Collection<String>> actSuffix = constructNoiseAwareSuffixAndFollowingActivity(caseId,
+						trace, i);
 				String act = actSuffix.getFirst();
-				List<String> suffix = actSuffix.getSecond();
+				Collection<String> suffix = actSuffix.getSecond();
 				if (act != null) {
 					TObjectIntMap<Collection<String>> distribution = precedesRelation.get(act);
 					int max = getMaximalPrecedesValue(distribution, suffix.size());
-					int Sum=  getSumPrecedesValue(distribution, suffix.size());
+					int Sum = getSumPrecedesValue(distribution, suffix.size());
 					int Count = getNZeroCountPrecedesValue(distribution, suffix.size());
-					double NZAvg=0;
-					if (Count>0)
-						NZAvg=(Sum*1.0)/Count;
+					double NZAvg = 0;
+					if (Count > 0)
+						NZAvg = (Sum * 1.0) / Count;
 					if (max == -1 || !distribution.containsKey(suffix)) {
 						return true;
 					} else {
-						AdjustmentMethod adjustmethod= getFilterParameters().getAdjustmentmethod();
+						AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
 						switch (adjustmethod) {
-						case None: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (Sum)){
-							return true;
-								}else { return false;}
-						case Max: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max)){
-							return true;
-								}else { return false;}
-						case MaxNZAvg: if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max- NZAvg)){
-							return true;
-								}else { return false;}				
-							}//switch
+							case NONE :
+								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (Sum)) {
+									return true;
+								} else {
+									return false;
+								}
+							case MAX :
+								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max)) {
+									return true;
+								} else {
+									return false;
+								}
+							case MAX_NZ_AVG :
+								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold()
+										* (max - NZAvg)) {
+									return true;
+								} else {
+									return false;
+								}
+						}//switch
 					} //main computation
 				} else {
 					return false;
@@ -243,6 +255,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		}
 		return max;
 	}
+
 	private int getSumFollowsValue(final TObjectIntMap<String> distribution) {
 		int Sum = 0;
 		if (distribution != null) {
@@ -250,21 +263,23 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				Sum = Sum + distribution.get(k);
 			}
 		}
-		
+
 		return Sum;
 	}
+
 	private int getNZeroCountFollowsValue(final TObjectIntMap<String> distribution) {
-		
-		int Count=0;
+
+		int Count = 0;
 		if (distribution != null) {
 			for (String k : distribution.keySet()) {
-				if (distribution.get(k)>0)
+				if (distribution.get(k) > 0)
 					Count++;
 			}
 		}
-		
+
 		return Count;
 	}
+
 	private int getMaximalPrecedesValue(final TObjectIntMap<Collection<String>> distribution, final int patternLength) {
 		int max = -1;
 		if (distribution != null) {
@@ -276,7 +291,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		}
 		return max;
 	}
-	
+
 	private int getSumPrecedesValue(final TObjectIntMap<Collection<String>> distribution, final int patternLength) {
 		int Sum = 0;
 		if (distribution != null) {
@@ -289,12 +304,14 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		return Sum;
 	}
 
-	private int getNZeroCountPrecedesValue(final TObjectIntMap<Collection<String>> distribution, final int patternLength) {
+	private int getNZeroCountPrecedesValue(final TObjectIntMap<Collection<String>> distribution,
+			final int patternLength) {
 		int Count = 0;
 		if (distribution != null) {
 			for (Collection<String> coll : distribution.keySet()) {
 				if (coll.size() == patternLength) { // we have to make sure that we only look at suffixes of the same length here!
-					if( distribution.get(coll) >0);
+					if (distribution.get(coll) > 0)
+						;
 					Count++;
 				}
 			}
@@ -304,15 +321,15 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 
 	@Override
 	protected void handleNextPacket(XSEvent event) {
-		final String caseId = event.get(storageParams.getCaseIdentifier()).toString();
+		final String caseId = event.get(collector.getStorageParameters().getCaseIdentifier()).toString();
 		collector.triggerPacketHandle(event);
 		List<String> trace = XSEventUtils.convertByKey(collector.getCases().get(caseId),
-				storageParams.getActivityIdentifier().toString());
+				collector.getStorageParameters().getActivityIdentifier().toString());
 		if (!alteredCases.contains(caseId)) {
 			trace.add(0, ARTIFICIAL_START_SYMBOL);
 		}
 		updateConditionalProbabilityStructure(trace);
-		if (collector.getSlidingWindow().size() >= storageParams.getSlidingWindowSize()
+		if (collector.getSlidingWindow().size() >= collector.getStorageParameters().getSlidingWindowSize()
 				&& (!getFilterParameters().isIgnoreTrainingCases()
 						|| (getFilterParameters().isIgnoreTrainingCases() && !getTrainingCases().contains(caseId)))) {
 			filter(event, caseId, trace);
@@ -324,7 +341,8 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private void incrementallyIncreaseFollowsRelation(final List<String> trace) {
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				List<String> prefix = trace.subList(trace.size() - i - 1, trace.size() - 1);
+				Collection<String> prefix = getAbstraction(
+						new ArrayList<>(trace.subList(trace.size() - i - 1, trace.size() - 1)));
 				if (!followsRelation.containsKey(prefix)) {
 					followsRelation.put(prefix, new TObjectIntHashMap<String>());
 				}
@@ -336,7 +354,8 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private void incrementallyIncreasePrecedenceRelation(final List<String> trace) {
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				List<String> suffix = trace.subList(trace.size() - i, trace.size());
+				Collection<String> suffix = getAbstraction(
+						new ArrayList<>(trace.subList(trace.size() - i, trace.size())));
 				String act = trace.get(trace.size() - i - 1);
 				if (!precedesRelation.containsKey(act)) {
 					precedesRelation.put(act, new TObjectIntHashMap<Collection<String>>());
@@ -351,7 +370,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		if (diff == 0) { // can't be > 0
 			for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 				if (i < alteredTrace.size()) {
-					List<String> prefix = alteredTrace.subList(0, i);
+					Collection<String> prefix = getAbstraction(new ArrayList<>(alteredTrace.subList(0, i)));
 					followsRelation.get(prefix).adjustValue(alteredTrace.get(i), -1);
 				}
 			}
@@ -359,7 +378,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			for (int i = 0; i < diff; i++) {
 				for (int j = i + 1; j <= i + getFilterParameters().getMaxPatternLength(); j++) {
 					if (j < alteredTrace.size()) {
-						List<String> prefix = alteredTrace.subList(i, j);
+						Collection<String> prefix = getAbstraction(new ArrayList<>(alteredTrace.subList(i, j)));
 						followsRelation.get(prefix).adjustValue(alteredTrace.get(j), -1);
 					} else {
 						break;
@@ -375,7 +394,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			String act = alteredTrace.get(0);
 			for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 				if (i < alteredTrace.size()) {
-					List<String> suffix = alteredTrace.subList(i, i + 1);
+					Collection<String> suffix = getAbstraction(new ArrayList<>(alteredTrace.subList(i, i + 1)));
 					precedesRelation.get(act).adjustValue(suffix, -1);
 				}
 			}
@@ -384,7 +403,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				String act = alteredTrace.get(i);
 				for (int j = i + 1; j <= i + getFilterParameters().getMaxPatternLength(); j++) {
 					if (j < alteredTrace.size()) {
-						List<String> suffix = alteredTrace.subList(i + 1, j + 1);
+						Collection<String> suffix = getAbstraction(new ArrayList<>(alteredTrace.subList(i + 1, j + 1)));
 						precedesRelation.get(act).adjustValue(suffix, -1);
 					}
 				}
@@ -398,9 +417,9 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		Map<String, Pair<List<XSEvent>, List<XSEvent>>> delta = collector.getDelta();
 		for (Map.Entry<String, Pair<List<XSEvent>, List<XSEvent>>> me : delta.entrySet()) {
 			final List<String> alteredTrace = XSEventUtils.convertByKey(me.getValue().getFirst(),
-					storageParams.getActivityIdentifier().toString());
+					collector.getStorageParameters().getActivityIdentifier().toString());
 			final List<String> newTrace = XSEventUtils.convertByKey(me.getValue().getSecond(),
-					storageParams.getActivityIdentifier().toString());
+					collector.getStorageParameters().getActivityIdentifier().toString());
 			final String alteredCaseId = me.getKey();
 			boolean isFirstRemovalForCase = false;
 			if (!alteredCases.contains(me.getKey())) {
@@ -448,6 +467,19 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				}
 			}
 		}
+	}
+
+	private Collection<String> getAbstraction(List<String> trace) {
+		switch (getFilterParameters().getAbstraction()) {
+			case MULTISET :
+				return new HashMultiSet<>(trace);
+			case SET :
+				return new HashSet<>(trace);
+			case SEQUENCE :
+			default :
+				return trace;
+		}
+
 	}
 
 }

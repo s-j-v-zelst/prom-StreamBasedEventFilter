@@ -2,9 +2,31 @@ package org.processmining.streambasedeventfilter.parameters;
 
 public class ConditionalProbabilitiesBasedXSEventFilterParametersImpl extends XSEventFilterParametersImpl {
 
+	public enum FilteringMethod {
+		BACKWARD, FORWARD, BOTH_DIRECTIONS, ANY;
+	}
+
+	public enum AdjustmentMethod {
+		NONE, MAX, MAX_NZ_AVG;
+	}
+
+	public enum Abstraction {
+		SEQUENCE, MULTISET, SET;
+	}
+
 	private int maxPatternLength = 3;
-	private FilteringMethod filtermethod=FilteringMethod.Forward;
-	private AdjustmentMethod adjustmentmethod = AdjustmentMethod.MaxNZAvg;
+	private FilteringMethod filtermethod = FilteringMethod.FORWARD;
+	private AdjustmentMethod adjustmentmethod = AdjustmentMethod.MAX_NZ_AVG;
+	private Abstraction abstraction = Abstraction.SEQUENCE;
+
+	public Abstraction getAbstraction() {
+		return abstraction;
+	}
+
+	public void setAbstraction(Abstraction abstraction) {
+		this.abstraction = abstraction;
+	}
+
 	private double cutoffThreshold = 0.01;
 
 	public int getMaxPatternLength() {
