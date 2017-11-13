@@ -48,7 +48,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			case ANY :
 				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
 			case BOTH_DIRECTIONS :
-				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
+				return evaluateFollowsRelations(caseId, trace) && evaluatePrecedesRelation(caseId, trace);
 			case FORWARD :
 				return evaluateFollowsRelations(caseId, trace);
 			case BACKWARD :
