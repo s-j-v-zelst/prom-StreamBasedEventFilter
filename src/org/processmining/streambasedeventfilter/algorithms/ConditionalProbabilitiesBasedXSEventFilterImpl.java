@@ -123,24 +123,24 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		final String newActivity = trace.get(trace.size() - 1);
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				Collection<String> prefix = getAbstraction(constructNoiseAwarePrefix(caseId, trace, i));
+				Collection<String> prefix = constructNoiseAwarePrefix(caseId, trace, i);
 				if (prefix.size() == i) {
+					prefix = getAbstraction((List<String>) prefix);
 					TObjectIntMap<String> distribution = followsRelation.get(prefix);
 					int max = getMaximalFollowsValue(distribution);
-					int Sum = getSumFollowsValue(distribution);
-					int Count = getNZeroCountFollowsValue(distribution);
+					int sum = getSumFollowsValue(distribution);
+					int count = getNZeroCountFollowsValue(distribution);
 					double NZAvg = 0;
-					if (Count > 0)
-						NZAvg = (Sum * 1.0) / Count;
+					if (count > 0)
+						NZAvg = (sum * 1.0) / count;
 					if (max == -1 || !distribution.containsKey(newActivity)) {
-
 						return true;
 					} else {
 						AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
 						switch (adjustmethod) {
 							case NONE :
 								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
-										* (Sum)) {
+										* (sum)) {
 									return true;
 								} else {
 									return false;
@@ -159,9 +159,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 								} else {
 									return false;
 								}
-
 						} // Switch
-
 					} // main computation
 				} else {
 					return false;
@@ -190,18 +188,18 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				if (act != null) {
 					TObjectIntMap<Collection<String>> distribution = precedesRelation.get(act);
 					int max = getMaximalPrecedesValue(distribution, suffix.size());
-					int Sum = getSumPrecedesValue(distribution, suffix.size());
-					int Count = getNZeroCountPrecedesValue(distribution, suffix.size());
+					int sum = getSumPrecedesValue(distribution, suffix.size());
+					int count = getNZeroCountPrecedesValue(distribution, suffix.size());
 					double NZAvg = 0;
-					if (Count > 0)
-						NZAvg = (Sum * 1.0) / Count;
+					if (count > 0)
+						NZAvg = (sum * 1.0) / count;
 					if (max == -1 || !distribution.containsKey(suffix)) {
 						return true;
 					} else {
 						AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
 						switch (adjustmethod) {
 							case NONE :
-								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (Sum)) {
+								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (sum)) {
 									return true;
 								} else {
 									return false;
@@ -269,12 +267,10 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				Sum = Sum + distribution.get(k);
 			}
 		}
-
 		return Sum;
 	}
 
 	private int getNZeroCountFollowsValue(final TObjectIntMap<String> distribution) {
-
 		int Count = 0;
 		if (distribution != null) {
 			for (String k : distribution.keySet()) {
@@ -282,7 +278,6 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 					Count++;
 			}
 		}
-
 		return Count;
 	}
 
