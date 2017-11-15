@@ -8,8 +8,10 @@ public class XSEventFilterParametersImpl extends PluginParametersImpl {
 	
 	private String classificationNoiseLabelValue = "true";
 
-	private boolean ignoreTrainingCases = true;
+	private boolean contextAware = true;
 
+	private boolean ignoreTrainingCases = true;
+	
 	private boolean isExperiment = true;
 
 	public String getNoiseClassificationLabelKey() {
@@ -20,12 +22,20 @@ public class XSEventFilterParametersImpl extends PluginParametersImpl {
 		return classificationNoiseLabelValue;
 	}
 
+	public boolean isContextAware() {
+		return contextAware;
+	}
+
 	public boolean isExperiment() {
 		return isExperiment;
 	}
 
 	public boolean isIgnoreTrainingCases() {
 		return ignoreTrainingCases;
+	}
+
+	public void setContextAware(boolean contextAware) {
+		this.contextAware = contextAware;
 	}
 
 	public void setExperiment(boolean isExperiment) {
@@ -43,5 +53,6 @@ public class XSEventFilterParametersImpl extends PluginParametersImpl {
 	public void setNoiseClassificationLabelValue(final String value) {
 		this.classificationNoiseLabelValue = value;
 	}
+	
 
 }

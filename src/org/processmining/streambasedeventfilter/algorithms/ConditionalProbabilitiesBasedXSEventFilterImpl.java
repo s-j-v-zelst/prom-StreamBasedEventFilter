@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.processmining.eventstream.core.interfaces.XSEvent;
+import org.processmining.eventstream.core.interfaces.XSStaticXSEventStream;
 import org.processmining.framework.util.Pair;
 import org.processmining.framework.util.collection.HashMultiSet;
 import org.processmining.streambasedeventfilter.algorithms.abstr.AbstractXSEventFilterImpl;
@@ -34,6 +35,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private final Map<String, TObjectIntMap<Collection<String>>> precedesRelation = new HashMap<>();
 	// registry that keeps track of indices in stored traces that relate to noise 
 	private final Map<String, int[]> noise = new HashMap<>();
+	private final Collection<XSEvent> resultingStream = new ArrayList<>();
 
 	public ConditionalProbabilitiesBasedXSEventFilterImpl(
 			ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParameters,
@@ -232,7 +234,11 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private void filter(final XSEvent event, final String caseId, final List<String> trace) {
 		boolean isNoise = classifyNewEventAsNoise(caseId, trace);
 		if (!isNoise) {
-			write(event);
+			if (getFilterParameters().isContextAware()) {
+				write(event);
+			} else {
+				resultingStream.add(event);
+			}
 		} else {
 			if (!noise.containsKey(caseId)) {
 				noise.put(caseId, new int[0]);
@@ -479,7 +485,14 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			default :
 				return trace;
 		}
+	}
 
+	public void processEvent(XSEvent e) {
+		handleNextPacket(e);
+	}
+
+	public XSStaticXSEventStream fetchFilteredStream() {
+		return XSStaticXSEventStream.Factory.createArrayListBasedXSStaticXSEventStream(resultingStream);
 	}
 
 }
