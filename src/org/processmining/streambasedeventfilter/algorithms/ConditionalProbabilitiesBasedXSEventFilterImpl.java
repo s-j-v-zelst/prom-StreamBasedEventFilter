@@ -32,9 +32,9 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private final String ARTIFICIAL_START_SYMBOL = "__ARTIFICIAL_START__" + System.currentTimeMillis();
 	private final NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl> collector;
 	private final Map<Collection<String>, TObjectIntMap<String>> followsRelation = new HashMap<>();
-	private final Map<String, TObjectIntMap<Collection<String>>> precedesRelation = new HashMap<>();
 	// registry that keeps track of indices in stored traces that relate to noise 
 	private final Map<String, int[]> noise = new HashMap<>();
+	private final Map<String, TObjectIntMap<Collection<String>>> precedesRelation = new HashMap<>();
 	private final Collection<XSEvent> resultingStream = new ArrayList<>();
 
 	public ConditionalProbabilitiesBasedXSEventFilterImpl(
@@ -110,6 +110,39 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 
 	}
 
+	private boolean evaluateFollowsByAbstraction(final Collection<String> abstraction, final String newActivity) {
+		TObjectIntMap<String> distribution = followsRelation.get(abstraction);
+		int max = getMaximalFollowsValue(distribution);
+		int sum = getSumFollowsValue(distribution);
+		int count = getNZeroCountFollowsValue(distribution);
+		double NZAvg = 0;
+		if (count > 0)
+			NZAvg = (sum * 1.0) / count;
+		if (max == -1 || !distribution.containsKey(newActivity)) {
+			return true;
+		} else {
+			AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
+			switch (adjustmethod) {
+				case NONE :
+					if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (sum)) {
+						return true;
+					}
+					break;
+				case MAX :
+					if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max)) {
+						return true;
+					}
+					break;
+				case MAX_NZ_AVG :
+					if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold() * (max - NZAvg)) {
+						return true;
+					}
+					break;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * checks follows relation(s) returns true iff noise is detected, false
 	 * otherwise.
@@ -120,52 +153,52 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	 * @return
 	 */
 	private boolean evaluateFollowsRelations(final String caseId, final List<String> trace) {
-		final String newActivity = trace.get(trace.size() - 1);
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
 				Collection<String> prefix = constructNoiseAwarePrefix(caseId, trace, i);
 				if (prefix.size() == i) {
-					prefix = getAbstraction((List<String>) prefix);
-					TObjectIntMap<String> distribution = followsRelation.get(prefix);
-					int max = getMaximalFollowsValue(distribution);
-					int sum = getSumFollowsValue(distribution);
-					int count = getNZeroCountFollowsValue(distribution);
-					double NZAvg = 0;
-					if (count > 0)
-						NZAvg = (sum * 1.0) / count;
-					if (max == -1 || !distribution.containsKey(newActivity)) {
+					if (evaluateFollowsByAbstraction(getAbstraction((List<String>) prefix),
+							trace.get(trace.size() - 1))) {
 						return true;
-					} else {
-						AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
-						switch (adjustmethod) {
-							case NONE :
-								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
-										* (sum)) {
-									return true;
-								} else {
-									return false;
-								}
-							case MAX :
-								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
-										* (max)) {
-									return true;
-								} else {
-									return false;
-								}
-							case MAX_NZ_AVG :
-								if (distribution.get(newActivity) <= getFilterParameters().getCutoffThreshold()
-										* (max - NZAvg)) {
-									return true;
-								} else {
-									return false;
-								}
-						} // Switch
-					} // main computation
+					}
 				} else {
 					return false;
 				}
 			} else {
 				return false;
+			}
+		}
+		return false;
+	}
+
+	private boolean evaluatePrecedesByAbstraction(final Collection<String> abstraction, final String activity) {
+		TObjectIntMap<Collection<String>> distribution = precedesRelation.get(activity);
+		int max = getMaximalPrecedesValue(distribution, abstraction.size());
+		int sum = getSumPrecedesValue(distribution, abstraction.size());
+		int count = getNZeroCountPrecedesValue(distribution, abstraction.size());
+		double NZAvg = 0;
+		if (count > 0)
+			NZAvg = (sum * 1.0) / count;
+		if (max == -1 || !distribution.containsKey(abstraction)) {
+			return true;
+		} else {
+			AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
+			switch (adjustmethod) {
+				case NONE :
+					if (distribution.get(abstraction) <= getFilterParameters().getCutoffThreshold() * (sum)) {
+						return true;
+					}
+					break;
+				case MAX :
+					if (distribution.get(abstraction) <= getFilterParameters().getCutoffThreshold() * (max)) {
+						return true;
+					}
+					break;
+				case MAX_NZ_AVG :
+					if (distribution.get(abstraction) <= getFilterParameters().getCutoffThreshold() * (max - NZAvg)) {
+						return true;
+					}
+					break;
 			}
 		}
 		return false;
@@ -181,44 +214,14 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private boolean evaluatePrecedesRelation(final String caseId, final List<String> trace) {
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				Pair<String, Collection<String>> actSuffix = constructNoiseAwareSuffixAndFollowingActivity(caseId,
-						trace, i);
-				String act = actSuffix.getFirst();
-				Collection<String> suffix = actSuffix.getSecond();
+				Pair<String, Collection<String>> actAbstr = constructNoiseAwareSuffixAndFollowingActivity(caseId, trace,
+						i);
+				String act = actAbstr.getFirst();
+				Collection<String> abstr = actAbstr.getSecond();
 				if (act != null) {
-					TObjectIntMap<Collection<String>> distribution = precedesRelation.get(act);
-					int max = getMaximalPrecedesValue(distribution, suffix.size());
-					int sum = getSumPrecedesValue(distribution, suffix.size());
-					int count = getNZeroCountPrecedesValue(distribution, suffix.size());
-					double NZAvg = 0;
-					if (count > 0)
-						NZAvg = (sum * 1.0) / count;
-					if (max == -1 || !distribution.containsKey(suffix)) {
+					if (evaluatePrecedesByAbstraction(abstr, act)) {
 						return true;
-					} else {
-						AdjustmentMethod adjustmethod = getFilterParameters().getAdjustmentmethod();
-						switch (adjustmethod) {
-							case NONE :
-								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (sum)) {
-									return true;
-								} else {
-									return false;
-								}
-							case MAX :
-								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold() * (max)) {
-									return true;
-								} else {
-									return false;
-								}
-							case MAX_NZ_AVG :
-								if (distribution.get(suffix) <= getFilterParameters().getCutoffThreshold()
-										* (max - NZAvg)) {
-									return true;
-								} else {
-									return false;
-								}
-						}//switch
-					} //main computation
+					}
 				} else {
 					return false;
 				}
@@ -227,6 +230,10 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			}
 		}
 		return false;
+	}
+
+	public XSStaticXSEventStream fetchFilteredStream() {
+		return XSStaticXSEventStream.Factory.createArrayListBasedXSStaticXSEventStream(resultingStream);
 	}
 
 	private void filter(final XSEvent event, final String caseId, final List<String> trace) {
@@ -250,6 +257,18 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		}
 	}
 
+	private Collection<String> getAbstraction(List<String> trace) {
+		switch (getFilterParameters().getAbstraction()) {
+			case MULTISET :
+				return new HashMultiSet<>(trace);
+			case SET :
+				return new HashSet<>(trace);
+			case SEQUENCE :
+			default :
+				return trace;
+		}
+	}
+
 	private int getMaximalFollowsValue(final TObjectIntMap<String> distribution) {
 		int max = -1;
 		if (distribution != null) {
@@ -258,27 +277,6 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			}
 		}
 		return max;
-	}
-
-	private int getSumFollowsValue(final TObjectIntMap<String> distribution) {
-		int Sum = 0;
-		if (distribution != null) {
-			for (String k : distribution.keySet()) {
-				Sum = Sum + distribution.get(k);
-			}
-		}
-		return Sum;
-	}
-
-	private int getNZeroCountFollowsValue(final TObjectIntMap<String> distribution) {
-		int Count = 0;
-		if (distribution != null) {
-			for (String k : distribution.keySet()) {
-				if (distribution.get(k) > 0)
-					Count++;
-			}
-		}
-		return Count;
 	}
 
 	private int getMaximalPrecedesValue(final TObjectIntMap<Collection<String>> distribution, final int patternLength) {
@@ -293,16 +291,15 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		return max;
 	}
 
-	private int getSumPrecedesValue(final TObjectIntMap<Collection<String>> distribution, final int patternLength) {
-		int Sum = 0;
+	private int getNZeroCountFollowsValue(final TObjectIntMap<String> distribution) {
+		int Count = 0;
 		if (distribution != null) {
-			for (Collection<String> coll : distribution.keySet()) {
-				if (coll.size() == patternLength) { // we have to make sure that we only look at suffixes of the same length here!
-					Sum = Sum + distribution.get(coll);
-				}
+			for (String k : distribution.keySet()) {
+				if (distribution.get(k) > 0)
+					Count++;
 			}
 		}
-		return Sum;
+		return Count;
 	}
 
 	private int getNZeroCountPrecedesValue(final TObjectIntMap<Collection<String>> distribution,
@@ -318,6 +315,28 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			}
 		}
 		return Count;
+	}
+
+	private int getSumFollowsValue(final TObjectIntMap<String> distribution) {
+		int Sum = 0;
+		if (distribution != null) {
+			for (String k : distribution.keySet()) {
+				Sum = Sum + distribution.get(k);
+			}
+		}
+		return Sum;
+	}
+
+	private int getSumPrecedesValue(final TObjectIntMap<Collection<String>> distribution, final int patternLength) {
+		int Sum = 0;
+		if (distribution != null) {
+			for (Collection<String> coll : distribution.keySet()) {
+				if (coll.size() == patternLength) { // we have to make sure that we only look at suffixes of the same length here!
+					Sum = Sum + distribution.get(coll);
+				}
+			}
+		}
+		return Sum;
 	}
 
 	@Override
@@ -412,6 +431,10 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		}
 	}
 
+	public void processEvent(XSEvent e) {
+		handleNextPacket(e);
+	}
+
 	private void updateConditionalProbabilityStructure(final List<String> trace) {
 		incrementallyIncreaseFollowsRelation(trace);
 		incrementallyIncreasePrecedenceRelation(trace);
@@ -468,26 +491,6 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				}
 			}
 		}
-	}
-
-	private Collection<String> getAbstraction(List<String> trace) {
-		switch (getFilterParameters().getAbstraction()) {
-			case MULTISET :
-				return new HashMultiSet<>(trace);
-			case SET :
-				return new HashSet<>(trace);
-			case SEQUENCE :
-			default :
-				return trace;
-		}
-	}
-
-	public void processEvent(XSEvent e) {
-		handleNextPacket(e);
-	}
-
-	public XSStaticXSEventStream fetchFilteredStream() {
-		return XSStaticXSEventStream.Factory.createArrayListBasedXSStaticXSEventStream(resultingStream);
 	}
 
 }

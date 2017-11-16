@@ -32,11 +32,9 @@ public class SpuriousEventFilterPlugin {
 	@PluginVariant(variantLabel = "Spurious Event Filter, stream / parameters", requiredParameterLabels = { 0, 1 })
 	public Object[] run(final PluginContext context, final XSEventStream stream,
 			final StreamBasedEventStorageParametersImpl parameters) {
-		//		XSEventHub hub = new TrieBasedSpuriousEventFilterStatisticsImpl(parameters,
-		//				new TrieBasedSpurioiusEventFilterParametersImpl());
-		XSEventHub hub = new ConditionalProbabilitiesBasedXSEventFilterImpl(
-				new ConditionalProbabilitiesBasedXSEventFilterParametersImpl(),
-				new StreamBasedEventLogParametersImpl());
+		ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParams = new ConditionalProbabilitiesBasedXSEventFilterParametersImpl();
+		StreamBasedEventLogParametersImpl storageParams = new StreamBasedEventLogParametersImpl();
+		XSEventHub hub = new ConditionalProbabilitiesBasedXSEventFilterImpl(filterParams, storageParams);
 		XSEventStream out = XSEventStreamFactory.createXSEventStream(CommunicationType.SYNC);
 		out.start();
 		out.connect(hub);
