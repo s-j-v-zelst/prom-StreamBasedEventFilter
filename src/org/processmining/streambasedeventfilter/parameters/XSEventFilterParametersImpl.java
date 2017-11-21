@@ -3,16 +3,18 @@ package org.processmining.streambasedeventfilter.parameters;
 import org.processmining.basicutils.parameters.impl.PluginParametersImpl;
 
 public class XSEventFilterParametersImpl extends PluginParametersImpl {
-	
+
 	private String classificationNoiseLabelKey = "xsevent:data:noise";
-	
+
 	private String classificationNoiseLabelValue = "true";
 
 	private boolean contextAware = true;
 
 	private boolean ignoreTrainingCases = true;
-	
+
 	private boolean isExperiment = true;
+
+	private long delay = 0l;
 
 	public String getNoiseClassificationLabelKey() {
 		return classificationNoiseLabelKey;
@@ -28,6 +30,14 @@ public class XSEventFilterParametersImpl extends PluginParametersImpl {
 
 	public boolean isExperiment() {
 		return isExperiment;
+	}
+
+	public long getDelay() {
+		return delay;
+	}
+
+	public void setDelay(long delay) {
+		this.delay = delay;
 	}
 
 	public boolean isIgnoreTrainingCases() {
@@ -53,6 +63,5 @@ public class XSEventFilterParametersImpl extends PluginParametersImpl {
 	public void setNoiseClassificationLabelValue(final String value) {
 		this.classificationNoiseLabelValue = value;
 	}
-	
 
 }

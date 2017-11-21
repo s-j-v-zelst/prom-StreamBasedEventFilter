@@ -5,8 +5,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.processmining.eventstream.core.interfaces.XSEvent;
@@ -36,6 +38,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private final Map<String, int[]> noise = new HashMap<>();
 	private final Map<String, TObjectIntMap<Collection<String>>> precedesRelation = new HashMap<>();
 	private final Collection<XSEvent> resultingStream = new ArrayList<>();
+	private final Queue<XSEvent> queue = new LinkedList<>();
 
 	public ConditionalProbabilitiesBasedXSEventFilterImpl(
 			ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParameters,
