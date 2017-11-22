@@ -35,7 +35,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private final NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl> collector;
 	private final Map<Collection<String>, TObjectIntMap<String>> followsRelation = new HashMap<>();
 	// registry that keeps track of indices in stored traces that relate to noise 
-	private final Map<String, int[]> noise = new HashMap<>();
+	private final Map<String, Pair<List<String>, int[]>> noise = new HashMap<>();
 	private final Map<String, TObjectIntMap<Collection<String>>> precedesRelation = new HashMap<>();
 	private final Collection<XSEvent> resultingStream = new ArrayList<>();
 	private final Queue<XSEvent> eventQueue = new LinkedList<>();
@@ -49,29 +49,30 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		collector = new NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl>(storageParams);
 	}
 
-	private boolean classifyNewEventAsNoise(final String caseId, final List<String> trace) {
+	private boolean classifyNewEventAsNoise(final List<String> trace, final int[] noiseIndices) {
 		FilteringMethod filtermethod = getFilterParameters().getFiltermethod();
 		switch (filtermethod) {
 			case ANY :
-				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
+				return evaluateFollowsRelations(trace, noiseIndices) || evaluatePrecedesRelation(trace, noiseIndices);
 			case BOTH_DIRECTIONS :
-				return evaluateFollowsRelations(caseId, trace) && evaluatePrecedesRelation(caseId, trace);
+				return evaluateFollowsRelations(trace, noiseIndices) && evaluatePrecedesRelation(trace, noiseIndices);
 			case FORWARD :
-				return evaluateFollowsRelations(caseId, trace);
+				return evaluateFollowsRelations(trace, noiseIndices);
 			case BACKWARD :
-				return evaluatePrecedesRelation(caseId, trace);
+				return evaluatePrecedesRelation(trace, noiseIndices);
 			default :
-				return evaluateFollowsRelations(caseId, trace) || evaluatePrecedesRelation(caseId, trace);
+				return evaluateFollowsRelations(trace, noiseIndices) || evaluatePrecedesRelation(trace, noiseIndices);
 		}
 
 	}
 
-	private List<String> constructNoiseAwarePrefix(final String caseId, final List<String> trace, final int length) {
-		if (noise.containsKey(caseId)) {
+	private List<String> constructNoiseAwarePrefix(final List<String> trace, final int length,
+			final int[] noiseIndices) {
+		if (noiseIndices != null) {
 			List<String> loopVar = new ArrayList<>(trace.subList(0, trace.size() - 1));
 			List<String> prefix = new ArrayList<>();
 			while (prefix.size() < length && loopVar.size() > 0) {
-				if (!ArrayUtils.contains(noise.get(caseId), loopVar.size() - 1)) {
+				if (!ArrayUtils.contains(noiseIndices, loopVar.size() - 1)) {
 					prefix.add(0, loopVar.get(loopVar.size() - 1));
 				}
 				int b = loopVar.size() - 1;
@@ -84,14 +85,14 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 
 	}
 
-	private Pair<String, Collection<String>> constructNoiseAwareSuffixAndFollowingActivity(final String caseId,
-			final List<String> trace, final int length) {
-		if (noise.containsKey(caseId)) {
+	private Pair<String, Collection<String>> constructNoiseAwareSuffixAndFollowingActivity(final List<String> trace,
+			final int length, final int[] noiseIndices) {
+		if (noiseIndices != null) {
 			List<String> loopVar = new ArrayList<>(trace.subList(0, trace.size() - 1));
 			List<String> suffix = new ArrayList<>(trace.subList(trace.size() - 1, trace.size()));
 			int loopVarSize = loopVar.size();
 			while (suffix.size() < length && loopVarSize > 0) {
-				if (!ArrayUtils.contains(noise.get(caseId), loopVar.size() - 1)) {
+				if (!ArrayUtils.contains(noiseIndices, loopVar.size() - 1)) {
 					suffix.add(0, loopVar.get(loopVar.size() - 1));
 				}
 				int b = loopVar.size() - 1;
@@ -100,7 +101,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			}
 			String act = null;
 			while (loopVar.size() > 0) {
-				if (!ArrayUtils.contains(noise.get(caseId), loopVar.size() - 1)) {
+				if (!ArrayUtils.contains(noiseIndices, loopVar.size() - 1)) {
 					act = loopVar.get(loopVar.size() - 1);
 					break;
 				}
@@ -157,10 +158,10 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	 * @param newActivity
 	 * @return
 	 */
-	private boolean evaluateFollowsRelations(final String caseId, final List<String> trace) {
+	private boolean evaluateFollowsRelations(final List<String> trace, final int[] noiseIndices) {
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				Collection<String> prefix = constructNoiseAwarePrefix(caseId, trace, i);
+				Collection<String> prefix = constructNoiseAwarePrefix(trace, i, noiseIndices);
 				if (prefix.size() == i) {
 					if (evaluateFollowsByAbstraction(getAbstraction((List<String>) prefix),
 							trace.get(trace.size() - 1))) {
@@ -216,11 +217,11 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	 * @param trace
 	 * @return
 	 */
-	private boolean evaluatePrecedesRelation(final String caseId, final List<String> trace) {
+	private boolean evaluatePrecedesRelation(final List<String> trace, final int[] noiseIndices) {
 		for (int i = 1; i <= getFilterParameters().getMaxPatternLength(); i++) {
 			if (trace.size() > i) {
-				Pair<String, Collection<String>> actAbstr = constructNoiseAwareSuffixAndFollowingActivity(caseId, trace,
-						i);
+				Pair<String, Collection<String>> actAbstr = constructNoiseAwareSuffixAndFollowingActivity(trace, i,
+						noiseIndices);
 				String act = actAbstr.getFirst();
 				Collection<String> abstr = actAbstr.getSecond();
 				if (act != null) {
@@ -242,7 +243,14 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	}
 
 	private void filter(final XSEvent event, final String caseId, final List<String> trace) {
-		boolean isNoise = classifyNewEventAsNoise(caseId, trace);
+		Pair<List<String>, int[]> formerFilteredTraceAndNoise = noise.get(caseId);
+		List<String> prevTrace = formerFilteredTraceAndNoise == null ? new ArrayList<String>()
+				: formerFilteredTraceAndNoise.getFirst();
+		int[] noiseIndices = formerFilteredTraceAndNoise == null ? new int[0] : formerFilteredTraceAndNoise.getSecond();
+		if (trace.size() <= prevTrace.size()) {
+			noiseIndices = shiftNoiseArray(noiseIndices, (byte) (prevTrace.size() - trace.size()));
+		}
+		boolean isNoise = classifyNewEventAsNoise(trace, noiseIndices);
 		if (!isNoise) {
 			if (getFilterParameters().isContextAware()) {
 				write(event);
@@ -250,13 +258,10 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				resultingStream.add(event);
 			}
 		} else {
-			if (!noise.containsKey(caseId)) {
-				noise.put(caseId, new int[0]);
-			}
-			int[] indices = Arrays.copyOf(noise.get(caseId), noise.get(caseId).length + 1);
-			indices[indices.length - 1] = trace.size() - 1;
-			noise.put(caseId, indices);
+			noiseIndices = Arrays.copyOf(noiseIndices, noiseIndices.length + 1);
+			noiseIndices[noiseIndices.length - 1] = trace.size() - 1;
 		}
+		noise.put(caseId, new Pair<List<String>, int[]>(new ArrayList<String>(trace), noiseIndices));
 		if (getFilterParameters().isExperiment()) {
 			updateExperimentVariables(event, isNoise);
 		}
@@ -363,7 +368,6 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			if (eventQueue.size() > getFilterParameters().getDelay()) {
 				filter(eventQueue.poll(), caseQueue.poll(), traceQueue.poll());
 			}
-			
 		} else if (getFilterParameters().isIgnoreTrainingCases()) {
 			getTrainingCases().add(caseId);
 		}
@@ -467,41 +471,55 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 			if (me.getValue().getSecond().isEmpty()) {
 				alteredCases.remove(me.getKey());
 			}
-			if (noise.containsKey(alteredCaseId)) {
-				updateNoiseDataStructureAfterRemoval(alteredCaseId, isFirstRemovalForCase);
-			}
+			//			if (noise.containsKey(alteredCaseId)) {
+			//				updateNoiseDataStructureAfterRemoval(alteredCaseId, isFirstRemovalForCase);
+			//			}
 		}
 	}
 
-	private void updateNoiseDataStructureAfterRemoval(final String alteredCaseId, final boolean isFirstRemovalForCase) {
-		boolean shift = false;
-		for (int i = 0; i < noise.get(alteredCaseId).length; i++) {
-			noise.get(alteredCaseId)[i]--;
-			if (isFirstRemovalForCase) {
-				noise.get(alteredCaseId)[i]--;
-			}
-			if (noise.get(alteredCaseId)[i] < 0) {
-				shift = true;
-			}
-		}
-		if (shift) {
-			if (noise.get(alteredCaseId).length > 1) {
-				noise.put(alteredCaseId,
-						Arrays.copyOfRange(noise.get(alteredCaseId), 1, noise.get(alteredCaseId).length));
-			} else {
-				noise.remove(alteredCaseId);
-			}
-			if (isFirstRemovalForCase && noise.containsKey(alteredCaseId)) {
-				if (noise.get(alteredCaseId)[0] < 0) {
-					if (noise.get(alteredCaseId).length > 1) {
-						noise.put(alteredCaseId,
-								Arrays.copyOfRange(noise.get(alteredCaseId), 1, noise.get(alteredCaseId).length));
-					} else {
-						noise.remove(alteredCaseId);
-					}
+	private int[] shiftNoiseArray(final int[] originalNoiseArray, final byte indexShift) {
+		int[] noise = Arrays.copyOf(originalNoiseArray, originalNoiseArray.length);
+		byte negative = 0;
+		for (byte b = 0; b <= indexShift; b++) {
+			for (int i = 0; i < noise.length; i++) {
+				noise[i]--;
+				if (noise[i] == -1) {
+					negative++;
 				}
 			}
 		}
+		return Arrays.copyOfRange(noise, negative, noise.length);
 	}
+
+	//	private void updateNoiseDataStructureAfterRemoval(final String alteredCaseId, final boolean isFirstRemovalForCase) {
+	//		boolean shift = false;
+	//		for (int i = 0; i < noise.get(alteredCaseId).length; i++) {
+	//			noise.get(alteredCaseId)[i]--;
+	//			if (isFirstRemovalForCase) {
+	//				noise.get(alteredCaseId)[i]--;
+	//			}
+	//			if (noise.get(alteredCaseId)[i] < 0) {
+	//				shift = true;
+	//			}
+	//		}
+	//		if (shift) {
+	//			if (noise.get(alteredCaseId).length > 1) {
+	//				noise.put(alteredCaseId,
+	//						Arrays.copyOfRange(noise.get(alteredCaseId), 1, noise.get(alteredCaseId).length));
+	//			} else {
+	//				noise.remove(alteredCaseId);
+	//			}
+	//			if (isFirstRemovalForCase && noise.containsKey(alteredCaseId)) {
+	//				if (noise.get(alteredCaseId)[0] < 0) {
+	//					if (noise.get(alteredCaseId).length > 1) {
+	//						noise.put(alteredCaseId,
+	//								Arrays.copyOfRange(noise.get(alteredCaseId), 1, noise.get(alteredCaseId).length));
+	//					} else {
+	//						noise.remove(alteredCaseId);
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
 
 }
