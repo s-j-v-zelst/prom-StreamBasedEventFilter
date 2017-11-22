@@ -38,7 +38,9 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private final Map<String, int[]> noise = new HashMap<>();
 	private final Map<String, TObjectIntMap<Collection<String>>> precedesRelation = new HashMap<>();
 	private final Collection<XSEvent> resultingStream = new ArrayList<>();
-	private final Queue<XSEvent> queue = new LinkedList<>();
+	private final Queue<XSEvent> eventQueue = new LinkedList<>();
+	private final Queue<String> caseQueue = new LinkedList<>();
+	private final Queue<List<String>> traceQueue = new LinkedList<>();
 
 	public ConditionalProbabilitiesBasedXSEventFilterImpl(
 			ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParameters,
@@ -355,7 +357,13 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		if (collector.getSlidingWindow().size() >= collector.getStorageParameters().getSlidingWindowSize()
 				&& (!getFilterParameters().isIgnoreTrainingCases()
 						|| (getFilterParameters().isIgnoreTrainingCases() && !getTrainingCases().contains(caseId)))) {
-			filter(event, caseId, trace);
+			eventQueue.add(event);
+			caseQueue.add(caseId);
+			traceQueue.add(new ArrayList<>(trace));
+			if (eventQueue.size() > getFilterParameters().getDelay()) {
+				filter(eventQueue.poll(), caseQueue.poll(), traceQueue.poll());
+			}
+			
 		} else if (getFilterParameters().isIgnoreTrainingCases()) {
 			getTrainingCases().add(caseId);
 		}
