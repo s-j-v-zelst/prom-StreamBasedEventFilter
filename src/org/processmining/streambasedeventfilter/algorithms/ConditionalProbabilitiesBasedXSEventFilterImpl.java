@@ -248,7 +248,7 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 				: formerFilteredTraceAndNoise.getFirst();
 		int[] noiseIndices = formerFilteredTraceAndNoise == null ? new int[0] : formerFilteredTraceAndNoise.getSecond();
 		if (trace.size() <= prevTrace.size()) {
-			noiseIndices = shiftNoiseArray(noiseIndices, (byte) (prevTrace.size() - trace.size()));
+			noiseIndices = shiftNoiseArray(noiseIndices, prevTrace.size() - trace.size());
 		}
 		boolean isNoise = classifyNewEventAsNoise(trace, noiseIndices);
 		if (!isNoise) {
@@ -477,10 +477,11 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		}
 	}
 
-	private int[] shiftNoiseArray(final int[] originalNoiseArray, final byte indexShift) {
+	private int[] shiftNoiseArray(final int[] originalNoiseArray, final int indexShift) {
+		System.out.println(indexShift);
 		int[] noise = Arrays.copyOf(originalNoiseArray, originalNoiseArray.length);
-		byte negative = 0;
-		for (byte b = 0; b <= indexShift; b++) {
+		int negative = 0;
+		for (int b = 0; b <= indexShift; b++) {
 			for (int i = 0; i < noise.length; i++) {
 				noise[i]--;
 				if (noise[i] == -1) {
