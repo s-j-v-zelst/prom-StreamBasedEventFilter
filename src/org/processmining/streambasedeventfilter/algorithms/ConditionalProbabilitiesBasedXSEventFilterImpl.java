@@ -478,7 +478,6 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	}
 
 	private int[] shiftNoiseArray(final int[] originalNoiseArray, final int indexShift) {
-		System.out.println(indexShift);
 		int[] noise = Arrays.copyOf(originalNoiseArray, originalNoiseArray.length);
 		int negative = 0;
 		for (int b = 0; b <= indexShift; b++) {
