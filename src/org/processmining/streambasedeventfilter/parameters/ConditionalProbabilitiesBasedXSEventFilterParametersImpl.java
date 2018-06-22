@@ -15,9 +15,9 @@ public class ConditionalProbabilitiesBasedXSEventFilterParametersImpl extends XS
 	}
 
 	private int maxPatternLength = 3;
-	private FilteringMethod filtermethod = FilteringMethod.FORWARD;
+	private FilteringMethod filtermethod = FilteringMethod.BOTH_DIRECTIONS;
 	private AdjustmentMethod adjustmentmethod = AdjustmentMethod.MAX_NZ_AVG;
-	private Abstraction abstraction = Abstraction.SEQUENCE;
+	private Abstraction abstraction = Abstraction.MULTISET;
 
 	public Abstraction getAbstraction() {
 		return abstraction;

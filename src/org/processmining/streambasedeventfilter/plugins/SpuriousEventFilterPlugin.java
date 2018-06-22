@@ -8,7 +8,9 @@ import org.processmining.contexts.uitopia.UIPluginContext;
 import org.processmining.contexts.uitopia.annotations.UITopiaVariant;
 import org.processmining.eventstream.connections.XSEventXSAuthorXSStreamConnectionImpl;
 import org.processmining.eventstream.core.factories.XSEventStreamFactory;
+import org.processmining.eventstream.core.interfaces.XSEvent;
 import org.processmining.eventstream.core.interfaces.XSEventStream;
+import org.processmining.eventstream.core.interfaces.XSStaticXSEventStream;
 import org.processmining.eventstream.dialogs.XSEventStreamConnectionDialogImpl;
 import org.processmining.eventstream.models.XSEventAuthor;
 import org.processmining.eventstream.models.XSEventHub;
@@ -41,6 +43,26 @@ public class SpuriousEventFilterPlugin {
 		hub.start();
 		stream.connect(hub);
 		return new Object[] { hub, out };
+	}
+
+	@UITopiaVariant(affiliation = "Eindhoven University of Technology", author = "Sebastiaan J. van Zelst", email = "s.j.v.zelst@tue.nl")
+	@PluginVariant(variantLabel = "Spurious Event Filter, static stream", requiredParameterLabels = { 0 })
+	public Object[] runStatic(final PluginContext context, final XSStaticXSEventStream stream) {
+		ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParams = new ConditionalProbabilitiesBasedXSEventFilterParametersImpl();
+		StreamBasedEventLogParametersImpl storageParams = new StreamBasedEventLogParametersImpl();
+		filterParams.setContextAware(false);
+		filterParams.setExperiment(false);
+		ConditionalProbabilitiesBasedXSEventFilterImpl filter = new ConditionalProbabilitiesBasedXSEventFilterImpl(
+				filterParams, storageParams);
+		for (XSEvent e : stream) {
+			//			System.out.println("Delivery of: " + e.toString());
+			filter.processEvent(e);
+		}
+		System.out.println("Filter done");
+		System.out.println("Original number of events: " + stream.size());
+		System.out.println("After filtering: " + filter.fetchFilteredStream().size());
+		return new Object[2];
+
 	}
 
 	@PluginVariant(variantLabel = "Spurious Event Filter, stream", requiredParameterLabels = { 0 })
