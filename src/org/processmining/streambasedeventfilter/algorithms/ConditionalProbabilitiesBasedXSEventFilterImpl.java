@@ -20,8 +20,8 @@ import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilit
 import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl.AdjustmentMethod;
 import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl.FilteringMethod;
 import org.processmining.streambasedeventfilter.util.XSEventUtils;
-import org.processmining.streambasedeventlog.algorithms.NaiveEventCollectorImpl;
-import org.processmining.streambasedeventlog.parameters.StreamBasedEventLogParametersImpl;
+import org.processmining.streambasedeventstorage.algorithms.XSEventStoreSlidingWindowImpl;
+import org.processmining.streambasedeventstorage.parameters.XSEventStoreSlidingWindowParametersImpl;
 
 import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
@@ -32,7 +32,10 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	// cases that are no longer complete in the store.
 	private final Collection<String> alteredCases = new HashSet<>();
 	private final String ARTIFICIAL_START_SYMBOL = "__ARTIFICIAL_START__" + System.currentTimeMillis();
-	private final NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl> collector;
+	//	private final NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl> collector;
+
+	private final XSEventStoreSlidingWindowImpl collector;
+
 	private final Map<Collection<String>, TObjectIntMap<String>> followsRelation = new HashMap<>();
 	// registry that keeps track of indices in stored traces that relate to noise 
 	private final Map<String, Pair<List<String>, int[]>> noise = new HashMap<>();
@@ -44,9 +47,9 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 
 	public ConditionalProbabilitiesBasedXSEventFilterImpl(
 			ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParameters,
-			StreamBasedEventLogParametersImpl storageParams) {
+			XSEventStoreSlidingWindowParametersImpl storageParams) {
 		super("spurious_event_filter_conditional_probs", filterParameters);
-		collector = new NaiveEventCollectorImpl<StreamBasedEventLogParametersImpl>(storageParams);
+		collector = new XSEventStoreSlidingWindowImpl(storageParams);
 	}
 
 	private boolean classifyNewEventAsNoise(final List<String> trace, final int[] noiseIndices) {
@@ -351,15 +354,15 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 
 	@Override
 	protected void handleNextPacket(XSEvent event) {
-		final String caseId = event.get(collector.getStorageParameters().getCaseIdentifier()).toString();
+		final String caseId = event.get(collector.getParameters().getCaseIdentifier()).toString();
 		collector.triggerPacketHandle(event);
-		List<String> trace = XSEventUtils.convertByKey(collector.getCases().get(caseId),
-				collector.getStorageParameters().getActivityIdentifier().toString());
+		List<String> trace = XSEventUtils.convertByKey(collector.project(caseId),
+				collector.getParameters().getActivityIdentifier().toString());
 		if (!alteredCases.contains(caseId)) {
 			trace.add(0, ARTIFICIAL_START_SYMBOL);
 		}
 		updateConditionalProbabilityStructure(trace);
-		if (collector.getSlidingWindow().size() >= collector.getStorageParameters().getSlidingWindowSize()
+		if (collector.getWindow().size() >= collector.getParameters().getSize()
 				&& (!getFilterParameters().isIgnoreTrainingCases()
 						|| (getFilterParameters().isIgnoreTrainingCases() && !getTrainingCases().contains(caseId)))) {
 			eventQueue.add(event);
@@ -371,6 +374,24 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 		} else if (getFilterParameters().isIgnoreTrainingCases()) {
 			getTrainingCases().add(caseId);
 		}
+	}
+
+	private Map<String, Pair<List<XSEvent>, List<XSEvent>>> computeDelta() {
+		Map<String, Pair<List<XSEvent>, List<XSEvent>>> delta = new HashMap<>();
+		TObjectIntMap<String> added = new TObjectIntHashMap<>();
+		for (XSEvent e : collector.getOutFlux()) {
+			String caseId = e.get(collector.getParameters().getCaseIdentifier()).toString();
+			if (!delta.containsKey(caseId)) {
+				List<XSEvent> trace = new ArrayList<>(collector.project(caseId));
+				trace.add(0, e);
+				delta.put(caseId, new Pair<List<XSEvent>, List<XSEvent>>(trace, collector.project(caseId)));
+				added.adjustOrPutValue(caseId, 1, 1);
+			} else {
+				delta.get(caseId).getFirst().add(added.get(caseId), e);
+				added.adjustOrPutValue(caseId, 1, 1);
+			}
+		}
+		return delta;
 	}
 
 	private void incrementallyIncreaseFollowsRelation(final List<String> trace) {
@@ -453,12 +474,13 @@ public class ConditionalProbabilitiesBasedXSEventFilterImpl
 	private void updateConditionalProbabilityStructure(final List<String> trace) {
 		incrementallyIncreaseFollowsRelation(trace);
 		incrementallyIncreasePrecedenceRelation(trace);
-		Map<String, Pair<List<XSEvent>, List<XSEvent>>> delta = collector.getDelta();
+//		Map<String, Pair<List<XSEvent>, List<XSEvent>>> delta = collector.getDelta();
+		Map<String, Pair<List<XSEvent>, List<XSEvent>>> delta = computeDelta();
 		for (Map.Entry<String, Pair<List<XSEvent>, List<XSEvent>>> me : delta.entrySet()) {
 			final List<String> alteredTrace = XSEventUtils.convertByKey(me.getValue().getFirst(),
-					collector.getStorageParameters().getActivityIdentifier().toString());
+					collector.getParameters().getActivityIdentifier().toString());
 			final List<String> newTrace = XSEventUtils.convertByKey(me.getValue().getSecond(),
-					collector.getStorageParameters().getActivityIdentifier().toString());
+					collector.getParameters().getActivityIdentifier().toString());
 			final String alteredCaseId = me.getKey();
 			boolean isFirstRemovalForCase = false;
 			if (!alteredCases.contains(me.getKey())) {

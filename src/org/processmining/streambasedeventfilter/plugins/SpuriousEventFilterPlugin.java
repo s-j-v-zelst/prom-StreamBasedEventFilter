@@ -23,19 +23,17 @@ import org.processmining.stream.connections.XSAuthorXSStreamConnectionImpl;
 import org.processmining.stream.core.enums.CommunicationType;
 import org.processmining.streambasedeventfilter.algorithms.ConditionalProbabilitiesBasedXSEventFilterImpl;
 import org.processmining.streambasedeventfilter.parameters.ConditionalProbabilitiesBasedXSEventFilterParametersImpl;
-import org.processmining.streambasedeventlog.help.StreamBasedEventLogHelp;
-import org.processmining.streambasedeventlog.parameters.StreamBasedEventLogParametersImpl;
-import org.processmining.streambasedeventlog.parameters.StreamBasedEventStorageParametersImpl;
+import org.processmining.streambasedeventstorage.parameters.XSEventStoreSlidingWindowParametersImpl;
 
 @Plugin(name = "Spurious Event Filter", parameterLabels = { "Event Stream", "Parameters" }, returnLabels = { "Hub",
-		"Event Stream" }, returnTypes = { XSEventHub.class, XSEventStream.class }, help = StreamBasedEventLogHelp.TEXT)
+		"Event Stream" }, returnTypes = { XSEventHub.class, XSEventStream.class }, help = "Spurious Event Filter")
 public class SpuriousEventFilterPlugin {
 
 	@PluginVariant(variantLabel = "Spurious Event Filter, stream / parameters", requiredParameterLabels = { 0, 1 })
 	public Object[] run(final PluginContext context, final XSEventStream stream,
-			final StreamBasedEventStorageParametersImpl parameters) {
+			final XSEventStoreSlidingWindowParametersImpl parameters) {
 		ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParams = new ConditionalProbabilitiesBasedXSEventFilterParametersImpl();
-		StreamBasedEventLogParametersImpl storageParams = new StreamBasedEventLogParametersImpl();
+		XSEventStoreSlidingWindowParametersImpl storageParams = new XSEventStoreSlidingWindowParametersImpl();
 		XSEventHub hub = new ConditionalProbabilitiesBasedXSEventFilterImpl(filterParams, storageParams);
 		XSEventStream out = XSEventStreamFactory.createXSEventStream(CommunicationType.SYNC);
 		out.start();
@@ -49,7 +47,7 @@ public class SpuriousEventFilterPlugin {
 	@PluginVariant(variantLabel = "Spurious Event Filter, static stream", requiredParameterLabels = { 0 })
 	public Object[] runStatic(final PluginContext context, final XSStaticXSEventStream stream) {
 		ConditionalProbabilitiesBasedXSEventFilterParametersImpl filterParams = new ConditionalProbabilitiesBasedXSEventFilterParametersImpl();
-		StreamBasedEventLogParametersImpl storageParams = new StreamBasedEventLogParametersImpl();
+		XSEventStoreSlidingWindowParametersImpl storageParams = new XSEventStoreSlidingWindowParametersImpl();
 		filterParams.setContextAware(false);
 		filterParams.setExperiment(false);
 		ConditionalProbabilitiesBasedXSEventFilterImpl filter = new ConditionalProbabilitiesBasedXSEventFilterImpl(
@@ -67,7 +65,7 @@ public class SpuriousEventFilterPlugin {
 
 	@PluginVariant(variantLabel = "Spurious Event Filter, stream", requiredParameterLabels = { 0 })
 	public Object[] runDefault(PluginContext context, XSEventStream stream) {
-		StreamBasedEventStorageParametersImpl parameters = new StreamBasedEventStorageParametersImpl();
+		XSEventStoreSlidingWindowParametersImpl parameters = new XSEventStoreSlidingWindowParametersImpl();
 		return run(context, stream, parameters);
 	}
 
@@ -75,7 +73,7 @@ public class SpuriousEventFilterPlugin {
 	@PluginVariant(variantLabel = "Spurious Event Filter, UI", requiredParameterLabels = { 0 })
 	public Object[] runUI(final UIPluginContext context, final XSEventStream stream) {
 		//TODO: make ProM-user dialog...
-		return run(context, stream, new StreamBasedEventStorageParametersImpl());
+		return run(context, stream, new XSEventStoreSlidingWindowParametersImpl());
 	}
 
 	@UITopiaVariant(affiliation = "Eindhoven University of Technology", author = "Sebastiaan J. van Zelst", email = "s.j.v.zelst@tue.nl")
@@ -92,7 +90,7 @@ public class SpuriousEventFilterPlugin {
 				XSEventStreamConnectionDialogImpl dialog = new XSEventStreamConnectionDialogImpl(
 						availableStreamsOfAuthor);
 				if (context.showWizard("Select Stream", true, true, dialog).equals(InteractionResult.FINISHED)) {
-					return run(context, dialog.getSelectedStream(), new StreamBasedEventStorageParametersImpl());
+					return run(context, dialog.getSelectedStream(), new XSEventStoreSlidingWindowParametersImpl());
 				}
 			}
 		} catch (ConnectionCannotBeObtained e) {
